@@ -1,0 +1,14 @@
+fastapi
+uvicorn
+python-jose[cryptography]
+passlib[bcrypt]
+bcrypt==3.2.2
+python-multipart
+sqlalchemy
+alembic
+psycopg2-binary
+sentence-transformers
+pdfplumber
+scikit-learn
+python-dotenv
+email-validator
