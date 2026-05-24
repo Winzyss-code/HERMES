@@ -1,0 +1,9 @@
+.git
+.gitignore
+backend/.venv-codex
+backend/venv
+backend/__pycache__
+backend/uploads
+frontend/node_modules
+frontend/dist
+*.log

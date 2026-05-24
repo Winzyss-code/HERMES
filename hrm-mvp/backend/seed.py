@@ -1,34 +1,48 @@
 from sqlalchemy.orm import Session
 
 from auth import hash_password
-from database import Base, SessionLocal, engine
-from models import User
-from services.key_store import generate_key_ref
+from database import Base, SessionLocal, apply_mvp_schema_updates, engine
+from models import Organization, User
 
 
 def seed_users(db: Session):
+    default_org = (
+        db.query(Organization).filter(Organization.name == "Default Organization").first()
+    )
+    if not default_org:
+        default_org = Organization(name="Default Organization", status="active")
+        db.add(default_org)
+        db.flush()
+
     defaults = [
-        ("hr_admin@test.com", "password123", "hr_admin"),
-        ("recruiter@test.com", "password123", "recruiter"),
+        ("super_admin", "password123", "super_admin", None),
+        ("org_admin", "password123", "org_admin", default_org.id),
+        ("hr_admin", "password123", "hr_admin", default_org.id),
+        ("recruiter", "password123", "recruiter", default_org.id),
     ]
-    for email, password, role in defaults:
-        existing = db.query(User).filter(User.email == email).first()
+    for username, password, role, organization_id in defaults:
+        existing = db.query(User).filter(User.username == username).first()
         if existing:
             continue
-        user = User(
-            email=email,
-            password_hash=hash_password(password),
-            role=role,
-            aes_key_ref=generate_key_ref(),
+        db.add(
+            User(
+                username=username,
+                password_hash=hash_password(password),
+                role=role,
+                organization_id=organization_id,
+            )
         )
-        db.add(user)
     db.commit()
 
 
 if __name__ == "__main__":
     Base.metadata.create_all(bind=engine)
+    apply_mvp_schema_updates()
     db = SessionLocal()
     try:
         seed_users(db)
+        print(
+            "Seeded users: super_admin/password123, org_admin/password123, hr_admin/password123, recruiter/password123"
+        )
     finally:
         db.close()

@@ -2,87 +2,114 @@ from datetime import datetime
 from typing import List
 from uuid import UUID
 
-from pydantic import BaseModel, EmailStr, Field
-
-
-class UserCreate(BaseModel):
-    email: EmailStr
-    password: str = Field(min_length=6)
-    role: str
+from pydantic import BaseModel, Field
 
 
 class LoginRequest(BaseModel):
-    email: EmailStr
+    username: str = Field(min_length=2)
     password: str = Field(min_length=6)
 
 
-class UserOut(BaseModel):
-    id: UUID
-    email: EmailStr
+class RegisterRequest(LoginRequest):
     role: str
-    aes_key_ref: str
+
+
+class RegisterOrganizationRequest(LoginRequest):
+    organization_name: str = Field(min_length=2)
+
+
+class TokenOut(BaseModel):
+    access_token: str
+    role: str
+    username: str
+    organization_id: UUID | None = None
+    organization_name: str | None = None
+    token_type: str = "bearer"
+
+
+class OrganizationOut(BaseModel):
+    id: UUID
+    name: str
+    status: str
     created_at: datetime
 
     class Config:
         from_attributes = True
 
 
-class TokenOut(BaseModel):
-    access_token: str
-    token_type: str = "bearer"
-    user: UserOut
+class UserCreate(BaseModel):
+    username: str = Field(min_length=2)
+    password: str = Field(min_length=6)
+    role: str
+
+
+class UserOut(BaseModel):
+    id: UUID
+    username: str
+    role: str
+    organization_id: UUID | None = None
+    created_at: datetime
+
+    class Config:
+        from_attributes = True
 
 
 class EmployeeCreate(BaseModel):
-    name_enc: str
-    email_enc: str
-    position_enc: str
+    department_id: int
+    status: str = "active"
+    encrypted_data: str
     iv: str
+    candidate_id: UUID | None = None
 
 
-class EmployeeOut(BaseModel):
+class EmployeeOut(EmployeeCreate):
     id: UUID
-    created_by: UUID
-    name_enc: str
-    email_enc: str
-    position_enc: str
-    iv: str
+    organization_id: UUID
     created_at: datetime
+
+    class Config:
+        from_attributes = True
 
 
 class JobCreate(BaseModel):
     title: str
     description: str
+    required_skills: List[str] = Field(default_factory=list)
 
 
-class JobOut(BaseModel):
+class JobOut(JobCreate):
     id: UUID
-    title: str
-    description: str
-    created_by: UUID
+    organization_id: UUID
+    status: str
     created_at: datetime
 
     class Config:
         from_attributes = True
 
 
-class ScreeningResultOut(BaseModel):
+class CandidateOut(BaseModel):
     id: UUID
+    organization_id: UUID
     job_id: UUID
-    candidate_name: str
-    score: float
-    file_path: str
-    ranked_at: datetime
+    employee_id: UUID | None = None
+    status: str
+    resume_filename: str
+    candidate_name: str | None = None
+    candidate_email: str | None = None
+    candidate_phone: str | None = None
+    final_score: float
+    cosine_sim: float
+    explanation: str
+    created_at: datetime
 
     class Config:
         from_attributes = True
 
 
-class ScreeningUploadResponse(BaseModel):
-    candidate_name: str
-    score: float
-    job_title: str
+class EmployeeScreenRequest(BaseModel):
+    employee_id: UUID
+    profile_text: str = Field(min_length=1)
 
 
-class ScreeningResultsList(BaseModel):
-    results: List[ScreeningResultOut]
+class CandidateStatusUpdate(BaseModel):
+    status: str

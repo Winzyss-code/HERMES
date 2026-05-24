@@ -1,125 +1,97 @@
-# Secure HRM MVP
+# HERMES MVP
 
-Secure HRM System MVP with application-level encryption for employee data and AI-driven resume screening. The backend never decrypts employee fields; decryption happens only in the browser using Web Crypto API.
+Protected multi-tenant HR administration and AI resume screening prototype.
 
-## Objective
+## Docker Quick Start
 
-- Protect employee PII with client-side AES-GCM encryption
-- Provide JWT-based access control with two roles (hr_admin, recruiter)
-- Enable AI-driven resume screening with anonymization and similarity scoring
-
-## Tech Stack
-
-- Backend: FastAPI, SQLAlchemy, PostgreSQL
-- Frontend: React 18, Vite, Tailwind CSS
-- Crypto: Web Crypto API (AES-GCM + PBKDF2)
-- AI: sentence-transformers + cosine similarity
-
-## Project Structure
-
-```
-hrm-mvp/
-├── backend/
-│   ├── main.py
-│   ├── database.py
-│   ├── models.py
-│   ├── schemas.py
-│   ├── auth.py
-│   ├── routers/
-│   ├── services/
-│   └── seed.py
-└── frontend/
-    └── src/
-```
-
-## Setup
-
-### Backend
-
-```bash
-cd backend
-pip install -r requirements.txt
-```
-
-Create database:
-
-```bash
-createdb hrm_mvp
-```
-
-If `createdb` is not on PATH (Windows):
+From this directory:
 
 ```powershell
-& "C:\Program Files\PostgreSQL\17\bin\psql.exe" -U postgres -h 127.0.0.1 -c "CREATE DATABASE hrm_mvp;"
+docker compose up -d
 ```
 
-Run the server:
+Open:
 
-```bash
-uvicorn main:app --reload --port 8000
+- Frontend: http://localhost:5173
+- Backend Swagger: http://localhost:8000/docs
+- PostgreSQL: localhost:5432
+
+The first build can take several minutes because the backend installs AI/NLP dependencies.
+
+## Default Seed Accounts
+
+These accounts are created automatically when the backend container starts:
+
+- `super_admin` / `password123`
+- `org_admin` / `password123`
+- `hr_admin` / `password123`
+- `recruiter` / `password123`
+
+For the seeded organization, use this demo master string when viewing encrypted HR data:
+
+```text
+HERMES-MVP-MASTER-KEY
 ```
 
-Seed default users:
+For a real demo flow, use `/register` to register a new organization. The first user becomes `org_admin`, then creates `hr_admin` and `recruiter` users inside that organization.
 
-```bash
-python seed.py
+## Architecture
+
+- Frontend: React 18, Vite, Tailwind CSS, Web Crypto API
+- Backend: FastAPI, SQLAlchemy, JWT RBAC
+- Database: PostgreSQL 17
+- Screening: `sentence-transformers` with deterministic lexical fallback
+- Deployment: Docker Compose with Nginx frontend proxy
+
+## Security Model
+
+HERMES uses a multi-tenant RBAC model:
+
+- `super_admin`: platform-level organization visibility
+- `org_admin`: manages users inside one organization
+- `hr_admin`: manages encrypted employee records inside one organization
+- `recruiter`: manages jobs and AI screening inside one organization
+
+All organization-owned data is filtered by `organization_id` on the backend.
+
+Employee data uses zero-knowledge client-side encryption:
+
+- plaintext employee data is encrypted in the browser using PBKDF2 + AES-GCM;
+- backend stores only `encrypted_data` and `iv`;
+- the organization master string is never stored by the backend.
+
+## Useful Commands
+
+```powershell
+docker compose ps
+docker compose logs -f backend
+docker compose logs -f frontend
+docker compose down
 ```
 
-### Frontend
+Reset all Docker data:
 
-```bash
+```powershell
+docker compose down -v
+docker compose up -d --build
+```
+
+## Local Development Without Docker
+
+Backend:
+
+```powershell
+cd backend
+python -m venv venv
+.\venv\Scripts\python.exe -m pip install -r requirements.txt
+.\venv\Scripts\python.exe seed.py
+.\venv\Scripts\python.exe -m uvicorn main:app --reload --port 8000
+```
+
+Frontend:
+
+```powershell
 cd frontend
 npm install
 npm run dev
 ```
-
-## Environment
-
-Create `backend/.env`:
-
-```
-DATABASE_URL=postgresql://postgres:password@localhost:5432/hrm_mvp
-JWT_SECRET=replace_with_random_secret_string
-JWT_ALGORITHM=HS256
-```
-
-## API Overview
-
-- `POST /auth/register`
-- `POST /auth/login`
-- `POST /employees` (hr_admin only)
-- `GET /employees` (hr_admin only)
-- `GET /employees/{id}` (hr_admin only)
-- `POST /jobs` (both roles)
-- `GET /jobs` (both roles)
-- `POST /screening/upload` (both roles)
-- `GET /screening/results/{job_id}` (both roles)
-
-## Data
-
-- PostgreSQL stores encrypted employee fields as BYTEA
-- AES keys are derived in-browser using PBKDF2 and never leave the client
-- Resume PDFs are stored on disk for MVP traceability and referenced in `resume_results`
-
-## Security Notes (MVP)
-
-- Employee data is encrypted client-side; server never decrypts
-- JWT and CryptoKey are stored in memory only
-- Keys are derived from user password + email salt (PBKDF2)
-
-## Limitations
-
-- No refresh token or persistent session storage (memory-only auth)
-- Minimal validation and error handling for MVP scope
-- Resume anonymization uses regex heuristics and may miss edge cases
-
-## Default Test Accounts
-
-- `hr_admin@test.com` / `password123` (role: hr_admin)
-- `recruiter@test.com` / `password123` (role: recruiter)
-
-## Troubleshooting
-
-- `email-validator is not installed` → `pip install -r requirements.txt`
-- `bcrypt` errors → `pip install -r requirements.txt --upgrade`
-- `users table does not exist` → run `python seed.py` after DB is created

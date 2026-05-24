@@ -1,0 +1,7 @@
+.venv-codex
+venv
+__pycache__
+uploads
+*.pyc
+*.log
+.env

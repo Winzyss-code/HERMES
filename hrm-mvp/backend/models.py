@@ -1,65 +1,88 @@
 import uuid
 from datetime import datetime
 
-from sqlalchemy import Column, DateTime, Enum, Float, ForeignKey, String, Text
-from sqlalchemy.dialects.postgresql import BYTEA, UUID
+from sqlalchemy import Column, DateTime, Enum, Float, ForeignKey, Integer, JSON, String, Text
+from sqlalchemy.dialects.postgresql import JSONB, UUID
 from sqlalchemy.orm import relationship
 
 from database import Base
 
 
-UserRole = Enum("hr_admin", "recruiter", name="user_role")
+UserRole = Enum("super_admin", "org_admin", "hr_admin", "recruiter", name="user_role")
+OrganizationStatus = Enum("active", "suspended", name="organization_status")
+JobStatus = Enum("open", "closed", name="job_status")
+CandidateStatus = Enum("applied", "screening", "approved", "rejected", name="candidate_status")
+
+
+class Organization(Base):
+    __tablename__ = "organizations"
+
+    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    name = Column(String, unique=True, index=True, nullable=False)
+    status = Column(OrganizationStatus, nullable=False, default="active")
+    created_at = Column(DateTime, default=datetime.utcnow, nullable=False)
+
+    users = relationship("User", back_populates="organization")
 
 
 class User(Base):
     __tablename__ = "users"
 
     id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
-    email = Column(String, unique=True, index=True, nullable=False)
+    username = Column(String, unique=True, index=True, nullable=False)
+    organization_id = Column(UUID(as_uuid=True), ForeignKey("organizations.id"), nullable=True)
     password_hash = Column(Text, nullable=False)
     role = Column(UserRole, nullable=False)
-    aes_key_ref = Column(Text, nullable=False)
     created_at = Column(DateTime, default=datetime.utcnow, nullable=False)
 
-    employees = relationship("Employee", back_populates="creator")
-    job_postings = relationship("JobPosting", back_populates="creator")
+    organization = relationship("Organization", back_populates="users")
 
 
 class Employee(Base):
     __tablename__ = "employees"
 
     id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
-    created_by = Column(UUID(as_uuid=True), ForeignKey("users.id"), nullable=False)
-    name_enc = Column(BYTEA, nullable=False)
-    email_enc = Column(BYTEA, nullable=False)
-    position_enc = Column(BYTEA, nullable=False)
-    iv = Column(BYTEA, nullable=False)
+    organization_id = Column(UUID(as_uuid=True), ForeignKey("organizations.id"), nullable=False)
+    department_id = Column(Integer, nullable=False)
+    status = Column(String, nullable=False, default="active")
+    encrypted_data = Column(Text, nullable=False)
+    iv = Column(Text, nullable=False)
     created_at = Column(DateTime, default=datetime.utcnow, nullable=False)
 
-    creator = relationship("User", back_populates="employees")
 
-
-class JobPosting(Base):
-    __tablename__ = "job_postings"
+class Job(Base):
+    __tablename__ = "jobs"
 
     id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    organization_id = Column(UUID(as_uuid=True), ForeignKey("organizations.id"), nullable=False)
     title = Column(String, nullable=False)
     description = Column(Text, nullable=False)
-    created_by = Column(UUID(as_uuid=True), ForeignKey("users.id"), nullable=False)
+    required_skills = Column(JSON().with_variant(JSONB, "postgresql"), nullable=False, default=list)
+    status = Column(JobStatus, nullable=False, default="open")
     created_at = Column(DateTime, default=datetime.utcnow, nullable=False)
 
-    creator = relationship("User", back_populates="job_postings")
-    results = relationship("ResumeResult", back_populates="job_posting")
+    candidates = relationship(
+        "Candidate", back_populates="job", cascade="all, delete-orphan"
+    )
 
 
-class ResumeResult(Base):
-    __tablename__ = "resume_results"
+class Candidate(Base):
+    __tablename__ = "candidates"
 
     id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
-    job_id = Column(UUID(as_uuid=True), ForeignKey("job_postings.id"), nullable=False)
-    candidate_name = Column(Text, nullable=False)
-    score = Column(Float, nullable=False)
-    file_path = Column(Text, nullable=False)
-    ranked_at = Column(DateTime, default=datetime.utcnow, nullable=False)
+    organization_id = Column(UUID(as_uuid=True), ForeignKey("organizations.id"), nullable=False)
+    job_id = Column(UUID(as_uuid=True), ForeignKey("jobs.id"), nullable=False)
+    employee_id = Column(UUID(as_uuid=True), ForeignKey("employees.id"), nullable=True)
+    status = Column(CandidateStatus, nullable=False, default="applied")
+    resume_filename = Column(Text, nullable=False)
+    resume_file_path = Column(Text, nullable=True)
+    candidate_name = Column(Text, nullable=True)
+    candidate_email = Column(Text, nullable=True)
+    candidate_phone = Column(Text, nullable=True)
+    final_score = Column(Float, nullable=False)
+    cosine_sim = Column(Float, nullable=False)
+    explanation = Column(Text, nullable=False)
+    created_at = Column(DateTime, default=datetime.utcnow, nullable=False)
 
-    job_posting = relationship("JobPosting", back_populates="results")
+    job = relationship("Job", back_populates="candidates")
+    employee = relationship("Employee")

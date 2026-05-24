@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { useNavigate } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 
 import { useAuth } from "../context/AuthContext.jsx";
 
@@ -7,7 +7,11 @@ import { useAuth } from "../context/AuthContext.jsx";
 const LoginPage = () => {
   const navigate = useNavigate();
   const { login } = useAuth();
-  const [form, setForm] = useState({ email: "", password: "" });
+  const [form, setForm] = useState({
+    username: "",
+    password: "",
+    masterSecret: "",
+  });
   const [error, setError] = useState(null);
 
   const handleChange = (event) => {
@@ -19,45 +23,77 @@ const LoginPage = () => {
     event.preventDefault();
     setError(null);
     try {
-      const userInfo = await login(form.email, form.password);
-      navigate(userInfo.role === "hr_admin" ? "/employees" : "/screening");
+      const role = await login(form.username, form.password, form.masterSecret);
+      if (role === "hr_admin") navigate("/employees");
+      else if (role === "recruiter") navigate("/jobs");
+      else if (role === "org_admin") navigate("/users");
+      else navigate("/organizations");
     } catch (err) {
-      setError("Login failed. Check your credentials.");
+      setError("Не удалось войти. Проверьте логин и пароль.");
     }
   };
 
   return (
-    <div className="mx-auto mt-12 max-w-md rounded bg-white p-6 shadow">
-      <h1 className="mb-4 text-xl font-semibold">Login</h1>
-      {error && <p className="mb-4 text-sm text-red-600">{error}</p>}
-      <form className="space-y-4" onSubmit={handleSubmit}>
-        <div>
-          <label className="mb-1 block text-sm text-gray-600">Email</label>
-          <input
-            className="w-full rounded border px-3 py-2"
-            type="email"
-            name="email"
-            value={form.email}
-            onChange={handleChange}
-            required
-          />
+    <main className="grid min-h-screen place-items-center bg-slate-50 px-4">
+      <div className="w-full max-w-md">
+        <div className="mb-6 text-center">
+          <div className="mx-auto mb-4 flex h-14 w-14 items-center justify-center rounded-2xl bg-indigo-600 text-xl font-bold text-white shadow-lg shadow-indigo-600/25">
+            H
+          </div>
+          <p className="text-sm font-semibold text-indigo-600">Secure Hiring OS</p>
+          <h1 className="mt-2 text-3xl font-semibold tracking-tight text-slate-900">Вход в HERMES</h1>
         </div>
-        <div>
-          <label className="mb-1 block text-sm text-gray-600">Password</label>
-          <input
-            className="w-full rounded border px-3 py-2"
-            type="password"
-            name="password"
-            value={form.password}
-            onChange={handleChange}
-            required
-          />
-        </div>
-        <button className="w-full rounded bg-gray-900 py-2 text-white">
-          Login
-        </button>
-      </form>
-    </div>
+        <section className="rounded-2xl border border-slate-100 bg-white p-6 shadow-xl shadow-slate-200/60">
+          {error && <p className="mb-4 rounded-xl bg-rose-50 p-3 text-sm font-medium text-rose-700">{error}</p>}
+          <form className="space-y-4" onSubmit={handleSubmit}>
+            <label className="block text-sm font-semibold text-slate-700">
+              Логин
+              <input
+                autoComplete="username"
+                className="mt-2 w-full rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm outline-none transition focus:border-indigo-300 focus:bg-white focus:ring-4 focus:ring-indigo-50"
+                name="username"
+                value={form.username}
+                onChange={handleChange}
+                required
+              />
+            </label>
+            <label className="block text-sm font-semibold text-slate-700">
+              Пароль
+              <input
+                autoComplete="current-password"
+                className="mt-2 w-full rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm outline-none transition focus:border-indigo-300 focus:bg-white focus:ring-4 focus:ring-indigo-50"
+                type="password"
+                name="password"
+                value={form.password}
+                onChange={handleChange}
+                required
+              />
+            </label>
+            <label className="block text-sm font-semibold text-slate-700">
+              Мастер-строка организации
+              <input
+                autoComplete="off"
+                className="mt-2 w-full rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm outline-none transition focus:border-indigo-300 focus:bg-white focus:ring-4 focus:ring-indigo-50"
+                type="password"
+                name="masterSecret"
+                value={form.masterSecret}
+                onChange={handleChange}
+                required
+              />
+            </label>
+            <button className="w-full rounded-xl bg-indigo-600 py-3 text-sm font-semibold text-white shadow-lg shadow-indigo-600/20 transition-all duration-200 hover:-translate-y-0.5 hover:bg-indigo-500">
+              Войти
+            </button>
+          </form>
+          <p className="mt-5 text-center text-sm text-slate-500">
+            Нет аккаунта?{" "}
+            <Link className="font-semibold text-indigo-600 hover:text-indigo-500" to="/register">
+              Зарегистрироваться
+            </Link>
+          </p>
+        </section>
+      </div>
+    </main>
   );
 };
 

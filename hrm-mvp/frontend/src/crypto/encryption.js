@@ -1,16 +1,19 @@
 const textEncoder = new TextEncoder();
 const textDecoder = new TextDecoder();
+const SALT = "hermes-organization-salt-v1";
 
-const toBase64 = (bytes) =>
-  btoa(String.fromCharCode(...new Uint8Array(bytes)));
+
+export const DEFAULT_MASTER_SECRET = "HERMES-MVP-MASTER-KEY";
+
+const toBase64 = (bytes) => btoa(String.fromCharCode(...new Uint8Array(bytes)));
 
 const fromBase64 = (base64) =>
-  Uint8Array.from(atob(base64), (c) => c.charCodeAt(0));
+  Uint8Array.from(atob(base64), (char) => char.charCodeAt(0));
 
-export async function deriveKey(password, salt) {
+export async function deriveKey(masterSecret = DEFAULT_MASTER_SECRET) {
   const keyMaterial = await window.crypto.subtle.importKey(
     "raw",
-    textEncoder.encode(password),
+    textEncoder.encode(masterSecret),
     "PBKDF2",
     false,
     ["deriveKey"]
@@ -19,8 +22,8 @@ export async function deriveKey(password, salt) {
   return window.crypto.subtle.deriveKey(
     {
       name: "PBKDF2",
-      salt: textEncoder.encode(salt),
-      iterations: 100000,
+      salt: textEncoder.encode(SALT),
+      iterations: 150000,
       hash: "SHA-256",
     },
     keyMaterial,
@@ -30,42 +33,25 @@ export async function deriveKey(password, salt) {
   );
 }
 
-export async function encryptField(cryptoKey, plaintext) {
+export async function encryptEmployee(cryptoKey, employee) {
   const iv = window.crypto.getRandomValues(new Uint8Array(12));
   const ciphertext = await window.crypto.subtle.encrypt(
     { name: "AES-GCM", iv },
     cryptoKey,
-    textEncoder.encode(plaintext)
+    textEncoder.encode(JSON.stringify(employee))
   );
 
   return {
-    ciphertext: toBase64(ciphertext),
+    encrypted_data: toBase64(ciphertext),
     iv: toBase64(iv),
   };
 }
 
-export async function decryptField(cryptoKey, ciphertextBase64, ivBase64) {
-  const ciphertext = fromBase64(ciphertextBase64);
-  const iv = fromBase64(ivBase64);
+export async function decryptEmployee(cryptoKey, encryptedData, ivBase64) {
   const plaintext = await window.crypto.subtle.decrypt(
-    { name: "AES-GCM", iv },
+    { name: "AES-GCM", iv: fromBase64(ivBase64) },
     cryptoKey,
-    ciphertext
+    fromBase64(encryptedData)
   );
-  return textDecoder.decode(plaintext);
-}
-
-export async function encryptEmployee(cryptoKey, { name, email, position }) {
-  const nameResult = await encryptField(cryptoKey, name);
-  const emailResult = await encryptField(cryptoKey, email);
-  const positionResult = await encryptField(cryptoKey, position);
-
-  return {
-    name_enc: nameResult.ciphertext,
-    name_iv: nameResult.iv,
-    email_enc: emailResult.ciphertext,
-    email_iv: emailResult.iv,
-    position_enc: positionResult.ciphertext,
-    position_iv: positionResult.iv,
-  };
+  return JSON.parse(textDecoder.decode(plaintext));
 }

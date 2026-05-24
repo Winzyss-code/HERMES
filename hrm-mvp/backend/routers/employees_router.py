@@ -1,16 +1,26 @@
 import base64
-import uuid
+import os
 
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.orm import Session
 
-from auth import require_role
+from auth import require_organization_user, require_role
 from database import get_db
-from models import Employee
+from models import Candidate, Employee, Job
 from schemas import EmployeeCreate, EmployeeOut
 
 
-router = APIRouter(prefix="/employees", tags=["employees"])
+router = APIRouter(prefix="/api/employees", tags=["employees"])
+
+
+def ensure_base64(value: str, field_name: str) -> None:
+    try:
+        base64.b64decode(value, validate=True)
+    except Exception:
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            detail=f"{field_name} must be valid base64",
+        )
 
 
 @router.post("", response_model=EmployeeOut, status_code=status.HTTP_201_CREATED)
@@ -19,36 +29,46 @@ def create_employee(
     db: Session = Depends(get_db),
     user=Depends(require_role(["hr_admin"])),
 ):
-    try:
-        name_bytes = base64.b64decode(payload.name_enc)
-        email_bytes = base64.b64decode(payload.email_enc)
-        position_bytes = base64.b64decode(payload.position_enc)
-        iv_bytes = base64.b64decode(payload.iv)
-    except Exception:
-        raise HTTPException(
-            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
-            detail="Invalid base64 payload",
-        )
+    require_organization_user(user)
+    ensure_base64(payload.encrypted_data, "encrypted_data")
+    ensure_base64(payload.iv, "iv")
 
-    employee = Employee(
-        created_by=user.id,
-        name_enc=name_bytes,
-        email_enc=email_bytes,
-        position_enc=position_bytes,
-        iv=iv_bytes,
-    )
+    payload_data = payload.dict()
+    candidate_id = payload_data.pop("candidate_id", None)
+    employee = Employee(**payload_data, organization_id=user.organization_id)
     db.add(employee)
+    if candidate_id:
+        candidate = (
+            db.query(Candidate)
+            .filter(
+                Candidate.id == candidate_id,
+                Candidate.status == "approved",
+                Candidate.organization_id == user.organization_id,
+            )
+            .first()
+        )
+        if not candidate:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="Approved candidate not found",
+            )
+
+        job = (
+            db.query(Job)
+            .filter(Job.id == candidate.job_id, Job.organization_id == user.organization_id)
+            .first()
+        )
+        if job:
+            job.status = "closed"
+
+        if candidate.resume_file_path and os.path.exists(candidate.resume_file_path):
+            os.remove(candidate.resume_file_path)
+
+        db.delete(candidate)
+
     db.commit()
     db.refresh(employee)
-    return EmployeeOut(
-        id=employee.id,
-        created_by=employee.created_by,
-        name_enc=base64.b64encode(employee.name_enc).decode("utf-8"),
-        email_enc=base64.b64encode(employee.email_enc).decode("utf-8"),
-        position_enc=base64.b64encode(employee.position_enc).decode("utf-8"),
-        iv=base64.b64encode(employee.iv).decode("utf-8"),
-        created_at=employee.created_at,
-    )
+    return employee
 
 
 @router.get("", response_model=list[EmployeeOut])
@@ -56,46 +76,10 @@ def list_employees(
     db: Session = Depends(get_db),
     user=Depends(require_role(["hr_admin"])),
 ):
-    employees = db.query(Employee).order_by(Employee.created_at.desc()).all()
-    return [
-        EmployeeOut(
-            id=emp.id,
-            created_by=emp.created_by,
-            name_enc=base64.b64encode(emp.name_enc).decode("utf-8"),
-            email_enc=base64.b64encode(emp.email_enc).decode("utf-8"),
-            position_enc=base64.b64encode(emp.position_enc).decode("utf-8"),
-            iv=base64.b64encode(emp.iv).decode("utf-8"),
-            created_at=emp.created_at,
-        )
-        for emp in employees
-    ]
-
-
-@router.get("/{employee_id}", response_model=EmployeeOut)
-def get_employee(
-    employee_id: str,
-    db: Session = Depends(get_db),
-    user=Depends(require_role(["hr_admin"])),
-):
-    try:
-        employee_uuid = uuid.UUID(employee_id)
-    except ValueError:
-        raise HTTPException(
-            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY, detail="Invalid ID"
-        )
-
-    employee = db.query(Employee).filter(Employee.id == employee_uuid).first()
-    if not employee:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND, detail="Employee not found"
-        )
-
-    return EmployeeOut(
-        id=employee.id,
-        created_by=employee.created_by,
-        name_enc=base64.b64encode(employee.name_enc).decode("utf-8"),
-        email_enc=base64.b64encode(employee.email_enc).decode("utf-8"),
-        position_enc=base64.b64encode(employee.position_enc).decode("utf-8"),
-        iv=base64.b64encode(employee.iv).decode("utf-8"),
-        created_at=employee.created_at,
+    require_organization_user(user)
+    return (
+        db.query(Employee)
+        .filter(Employee.organization_id == user.organization_id)
+        .order_by(Employee.created_at.desc())
+        .all()
     )

@@ -1,18 +1,14 @@
 import axios from "axios";
 
-let authToken = null;
-
-export const setAuthToken = (token) => {
-  authToken = token;
-};
 
 const client = axios.create({
-  baseURL: "http://localhost:8000",
+  baseURL: import.meta.env.VITE_API_BASE_URL || "http://localhost:8000/api",
 });
 
 client.interceptors.request.use((config) => {
-  if (authToken) {
-    config.headers.Authorization = `Bearer ${authToken}`;
+  const token = localStorage.getItem("hermes_token");
+  if (token) {
+    config.headers.Authorization = `Bearer ${token}`;
   }
   return config;
 });
