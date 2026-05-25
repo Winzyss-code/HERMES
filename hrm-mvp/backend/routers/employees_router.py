@@ -7,7 +7,7 @@ from sqlalchemy.orm import Session
 from auth import require_organization_user, require_role
 from database import get_db
 from models import Candidate, Employee, Job
-from schemas import EmployeeCreate, EmployeeOut
+from schemas import EmployeeCreate, EmployeeOut, EmployeeUpdate
 
 
 router = APIRouter(prefix="/api/employees", tags=["employees"])
@@ -83,3 +83,71 @@ def list_employees(
         .order_by(Employee.created_at.desc())
         .all()
     )
+
+
+@router.put("/{employee_id}", response_model=EmployeeOut)
+def update_employee(
+    employee_id: str,
+    payload: EmployeeUpdate,
+    db: Session = Depends(get_db),
+    user=Depends(require_role(["hr_admin"])),
+):
+    require_organization_user(user)
+    ensure_base64(payload.encrypted_data, "encrypted_data")
+    ensure_base64(payload.iv, "iv")
+
+    employee = (
+        db.query(Employee)
+        .filter(
+            Employee.id == employee_id,
+            Employee.organization_id == user.organization_id,
+        )
+        .first()
+    )
+    if not employee:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Employee not found",
+        )
+
+    employee.department_id = payload.department_id
+    employee.status = payload.status
+    employee.encrypted_data = payload.encrypted_data
+    employee.iv = payload.iv
+    db.commit()
+    db.refresh(employee)
+    return employee
+
+
+@router.delete("/{employee_id}", status_code=status.HTTP_204_NO_CONTENT)
+def delete_employee(
+    employee_id: str,
+    db: Session = Depends(get_db),
+    user=Depends(require_role(["hr_admin"])),
+):
+    require_organization_user(user)
+    employee = (
+        db.query(Employee)
+        .filter(
+            Employee.id == employee_id,
+            Employee.organization_id == user.organization_id,
+        )
+        .first()
+    )
+    if not employee:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Employee not found",
+        )
+
+    (
+        db.query(Candidate)
+        .filter(
+            Candidate.employee_id == employee.id,
+            Candidate.organization_id == user.organization_id,
+        )
+        .update({Candidate.employee_id: None}, synchronize_session=False)
+    )
+    db.delete(employee)
+    db.commit()
+    return None

@@ -123,6 +123,7 @@ const ScreeningPage = () => {
         headers: { "Content-Type": "multipart/form-data" },
       });
       await fetchCandidates(selectedJobId);
+      await fetchJobs();
       setActiveCandidate(response.data);
       setFile(null);
       setMessage("Резюме обработано.");
@@ -163,12 +164,12 @@ const ScreeningPage = () => {
             <div className="grid gap-3 sm:grid-cols-2">
               {jobs.map((job) => {
                 const selected = selectedJobId === job.id;
-                const count = candidates.filter((candidate) => candidate.job_id === job.id).length;
+                const count = selected ? candidates.length : job.candidates_count || 0;
                 return (
                   <button
                     key={job.id}
                     className={`rounded-2xl border p-4 text-left transition-all duration-200 hover:-translate-y-1 hover:shadow-lg ${
-                      selected ? "border-indigo-200 bg-indigo-50/50 shadow-sm" : "border-slate-100 bg-white"
+                      selected ? "border-indigo-200 bg-indigo-50/50 shadow-sm dark:border-indigo-500/60 dark:bg-indigo-500/15" : "border-slate-100 bg-white dark:border-slate-700 dark:bg-slate-900"
                     }`}
                     onClick={() => setSelectedJobId(job.id)}
                   >
@@ -181,10 +182,10 @@ const ScreeningPage = () => {
                         </span>
                       )}
                     </div>
-                    <p className="mt-2 line-clamp-2 text-sm leading-6 text-slate-500">{job.description}</p>
+                    <p className="mt-2 line-clamp-2 text-sm leading-6 text-slate-500 dark:text-slate-400">{job.description}</p>
                     <div className="mt-4 flex items-center justify-between">
                       <span className="text-xs font-medium text-slate-400">{count} кандидатов</span>
-                      <span className={`rounded-full px-2.5 py-1 text-xs font-semibold ${job.status === "open" ? "bg-emerald-50 text-emerald-700" : "bg-slate-100 text-slate-500"}`}>
+                      <span className={`rounded-full px-2.5 py-1 text-xs font-semibold ${job.status === "open" ? "bg-emerald-50 text-emerald-700 dark:bg-emerald-500/15 dark:text-emerald-300" : "bg-slate-100 text-slate-500 dark:bg-slate-800 dark:text-slate-300"}`}>
                         {job.status}
                       </span>
                     </div>
@@ -215,7 +216,7 @@ const ScreeningPage = () => {
             </div>
             {message && <p className="mb-4 rounded-xl bg-slate-50 p-3 text-sm text-slate-600">{message}</p>}
             <form className="space-y-4" onSubmit={handleUpload}>
-              <label className="group flex min-h-56 cursor-pointer flex-col items-center justify-center rounded-2xl border-2 border-dashed border-indigo-200 bg-indigo-50/30 p-6 text-center text-indigo-600 transition-all duration-200 hover:-translate-y-1 hover:border-indigo-300 hover:bg-indigo-50/60 hover:shadow-lg hover:shadow-indigo-600/10">
+              <label className="group flex min-h-56 cursor-pointer flex-col items-center justify-center rounded-2xl border-2 border-dashed border-indigo-200 bg-indigo-50/30 p-6 text-center text-indigo-600 transition-all duration-200 hover:-translate-y-1 hover:border-indigo-300 hover:bg-indigo-50/60 hover:shadow-lg hover:shadow-indigo-600/10 dark:border-indigo-400/40 dark:bg-indigo-500/10 dark:text-indigo-300 dark:hover:bg-indigo-500/15">
                 <CloudIcon />
                 <span className="mt-4 text-sm font-semibold text-slate-900">
                   {file ? file.name : "Перетащите резюме или выберите файл"}
@@ -282,7 +283,7 @@ const ScreeningPage = () => {
                           </span>
                         </td>
                         <td className="px-6 py-4">
-                          <span className={`rounded-full px-3 py-1.5 text-xs ${status.className}`}>{status.label}</span>
+                          <span className={`inline-flex min-w-[112px] justify-center rounded-full px-3 py-1.5 text-xs ${status.className}`}>{status.label}</span>
                         </td>
                         <td className="px-6 py-4">
                           {candidate.status === "approved" ? (

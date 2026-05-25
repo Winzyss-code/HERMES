@@ -5,3 +5,107 @@
 body {
   font-family: "Inter", "Segoe UI", system-ui, sans-serif;
 }
+
+@layer base {
+  html {
+    color-scheme: light;
+  }
+
+  html.dark {
+    color-scheme: dark;
+  }
+
+  html.dark body {
+    background: #020617;
+    color: #e2e8f0;
+  }
+}
+
+@layer utilities {
+  html.dark .bg-slate-50,
+  html.dark [class*="bg-slate-50/"],
+  html.dark [class*="bg-white"] {
+    background-color: #0f172a !important;
+  }
+
+  html.dark .bg-slate-100,
+  html.dark [class*="bg-slate-100"] {
+    background-color: #1e293b !important;
+  }
+
+  html.dark .bg-indigo-50,
+  html.dark .bg-purple-50,
+  html.dark .bg-blue-50,
+  html.dark .bg-emerald-50,
+  html.dark .bg-amber-50,
+  html.dark .bg-rose-50,
+  html.dark [class*="bg-indigo-50/"],
+  html.dark [class*="bg-purple-50/"],
+  html.dark [class*="bg-blue-50/"],
+  html.dark [class*="bg-emerald-50/"],
+  html.dark [class*="bg-amber-50/"],
+  html.dark [class*="bg-rose-50/"] {
+    background-color: rgba(30, 41, 59, 0.92) !important;
+  }
+
+  html.dark .text-slate-950,
+  html.dark .text-slate-900,
+  html.dark .text-slate-800,
+  html.dark .text-slate-700 {
+    color: #f8fafc !important;
+  }
+
+  html.dark .text-slate-600,
+  html.dark .text-slate-500,
+  html.dark .text-slate-400 {
+    color: #94a3b8 !important;
+  }
+
+  html.dark .text-rose-700,
+  html.dark .text-amber-700,
+  html.dark .text-emerald-700,
+  html.dark .text-blue-700,
+  html.dark .text-purple-700,
+  html.dark .text-indigo-700 {
+    color: #e0e7ff !important;
+  }
+
+  html.dark .border-slate-100,
+  html.dark .border-slate-200,
+  html.dark .border-white\/70,
+  html.dark [class*="border-slate-"] {
+    border-color: #1e293b !important;
+  }
+
+  html.dark input,
+  html.dark select,
+  html.dark textarea {
+    background-color: #020617 !important;
+    border-color: #334155 !important;
+    color: #e2e8f0 !important;
+  }
+
+  html.dark input::placeholder,
+  html.dark textarea::placeholder {
+    color: #64748b !important;
+  }
+
+  html.dark table {
+    color: #e2e8f0;
+  }
+
+  html.dark tr:hover {
+    background-color: rgba(30, 41, 59, 0.7) !important;
+  }
+
+  html.dark aside,
+  html.dark header {
+    box-shadow: 0 24px 80px rgba(0, 0, 0, 0.35);
+  }
+
+  html.dark .shadow-sm,
+  html.dark .shadow-xl,
+  html.dark .shadow-2xl {
+    box-shadow: 0 18px 60px rgba(0, 0, 0, 0.28) !important;
+  }
+}

@@ -1,5 +1,6 @@
 import { Link, useLocation, useNavigate } from "react-router-dom";
 
+import ThemeToggle from "./ThemeToggle.jsx";
 import { useAuth } from "../context/AuthContext.jsx";
 
 
@@ -16,13 +17,6 @@ const ShieldIcon = () => (
       strokeLinecap="round"
       strokeLinejoin="round"
     />
-  </svg>
-);
-
-const SunIcon = () => (
-  <svg className="h-4 w-4" viewBox="0 0 24 24" fill="none" aria-hidden="true">
-    <path d="M12 7.5a4.5 4.5 0 1 0 0 9 4.5 4.5 0 0 0 0-9Z" stroke="currentColor" strokeWidth="1.8" />
-    <path d="M12 2.75v2.1M12 19.15v2.1M21.25 12h-2.1M4.85 12h-2.1M18.54 5.46l-1.49 1.49M6.95 17.05l-1.49 1.49M18.54 18.54l-1.49-1.49M6.95 6.95 5.46 5.46" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" />
   </svg>
 );
 
@@ -56,7 +50,7 @@ const Navbar = () => {
       <aside className="fixed inset-y-0 left-0 z-40 hidden w-72 border-r border-white/70 bg-white/80 p-5 shadow-[0_20px_80px_rgba(15,23,42,0.08)] backdrop-blur-xl lg:block">
         <div className="flex h-full flex-col">
           <Link className="group flex items-center gap-3" to={role === "hr_admin" ? "/employees" : role === "recruiter" ? "/jobs" : role === "org_admin" ? "/users" : "/organizations"}>
-            <span className="flex h-11 w-11 items-center justify-center rounded-2xl bg-indigo-50 text-indigo-600 ring-1 ring-indigo-100 transition-transform duration-200 group-hover:scale-105">
+            <span className="flex h-11 w-11 items-center justify-center rounded-2xl bg-indigo-50 text-indigo-600 ring-1 ring-indigo-100 transition-transform duration-200 group-hover:scale-105 dark:bg-slate-800 dark:text-indigo-300 dark:ring-slate-700">
               <ShieldIcon />
             </span>
             <div>
@@ -65,7 +59,7 @@ const Navbar = () => {
             </div>
           </Link>
 
-          <div className="mt-8 rounded-2xl border border-slate-100 bg-slate-50/80 p-4">
+          <div className="mt-8 rounded-2xl border border-slate-100 bg-slate-50/80 p-4 dark:border-slate-700 dark:bg-slate-900">
             <p className="text-xs font-medium uppercase tracking-wide text-slate-400">Текущая роль</p>
             <span className={`mt-3 inline-flex rounded-full px-3 py-1.5 text-xs font-semibold ring-1 ${role === "hr_admin" ? "bg-emerald-50 text-emerald-700 ring-emerald-200" : "bg-purple-50 text-purple-700 ring-purple-200"}`}>
               {roleLabel}
@@ -95,7 +89,7 @@ const Navbar = () => {
             })}
           </nav>
 
-          <div className="mt-auto rounded-2xl border border-slate-100 bg-white p-4 shadow-sm">
+          <div className="mt-auto rounded-2xl border border-slate-100 bg-white p-4 shadow-sm dark:border-slate-700 dark:bg-slate-900">
             <p className="text-sm font-semibold text-slate-900">Zero-Knowledge Ready</p>
             <p className="mt-1 text-xs leading-5 text-slate-500">
               HR-данные шифруются на устройстве и не раскрываются серверу.
@@ -119,13 +113,8 @@ const Navbar = () => {
             </h1>
           </div>
           <div className="flex items-center gap-3">
-            <button className="inline-flex h-10 w-10 items-center justify-center rounded-xl border border-slate-100 bg-white text-slate-500 shadow-sm transition-all duration-200 hover:-translate-y-0.5 hover:text-indigo-600 hover:shadow-md" type="button" title="Theme">
-              <SunIcon />
-            </button>
-            <div className="hidden items-center gap-3 rounded-2xl border border-slate-100 bg-white py-1.5 pl-2 pr-4 shadow-sm sm:flex">
-              <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-gradient-to-br from-indigo-500 to-purple-500 text-sm font-semibold text-white">
-                {(username || "H").slice(0, 1).toUpperCase()}
-              </div>
+            <ThemeToggle />
+            <div className="hidden items-center gap-3 rounded-2xl border border-slate-100 bg-white px-4 py-1.5 shadow-sm sm:flex">
               <div>
                 <p className="text-sm font-semibold text-slate-900">{username}</p>
                 <p className="text-xs text-slate-500">{roleLabel}</p>

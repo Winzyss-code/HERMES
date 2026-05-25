@@ -35,6 +35,26 @@ HERMES-MVP-MASTER-KEY
 
 For a real demo flow, use `/register` to register a new organization. The first user becomes `org_admin`, then creates `hr_admin` and `recruiter` users inside that organization.
 
+## Email Verification / SMTP
+
+New organization registration requires email confirmation. Configure SMTP before running Docker:
+
+```powershell
+$env:SMTP_HOST="smtp.example.com"
+$env:SMTP_PORT="587"
+$env:SMTP_USERNAME="user@example.com"
+$env:SMTP_PASSWORD="app-password"
+$env:SMTP_FROM="HERMES <user@example.com>"
+$env:SMTP_USE_TLS="true"
+docker compose up -d
+```
+
+If `SMTP_HOST` is empty, HERMES keeps working in demo mode and prints the verification link in backend logs:
+
+```powershell
+docker compose logs -f backend
+```
+
 ## Architecture
 
 - Frontend: React 18, Vite, Tailwind CSS, Web Crypto API

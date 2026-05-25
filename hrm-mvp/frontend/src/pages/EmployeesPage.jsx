@@ -23,10 +23,6 @@ const EyeIcon = ({ active }) => (
 
 const buildProfileText = (employee) =>
   [
-    `Full name: ${employee.fullName || ""}`,
-    `Email: ${employee.email || ""}`,
-    `Phone: ${employee.phone || ""}`,
-    `Salary: ${employee.salary || ""}`,
     `Skills: ${employee.skills || ""}`,
     `Experience: ${employee.experience || ""}`,
   ]
@@ -73,6 +69,28 @@ const EmployeesPage = () => {
   const [selectedEmployee, setSelectedEmployee] = useState(null);
   const [selectedJobId, setSelectedJobId] = useState("");
   const [isModalOpen, setIsModalOpen] = useState(false);
+  const [hireCandidateDraft, setHireCandidateDraft] = useState(null);
+  const [hireForm, setHireForm] = useState({
+    fullName: "",
+    email: "",
+    phone: "",
+    salary: "",
+    department_id: "1",
+    status: "active",
+    skills: "",
+    experience: "",
+  });
+  const [editEmployee, setEditEmployee] = useState(null);
+  const [editForm, setEditForm] = useState({
+    fullName: "",
+    email: "",
+    phone: "",
+    salary: "",
+    departmentId: "1",
+    status: "active",
+    skills: "",
+    experience: "",
+  });
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
   const [secretCells, setSecretCells] = useState({});
@@ -161,6 +179,9 @@ const EmployeesPage = () => {
       const response = await client.post(`/jobs/${selectedJobId}/screen-employee`, {
         employee_id: selectedEmployee.id,
         profile_text: profileText,
+        candidate_name: selectedEmployee.data.fullName || "Внутренний сотрудник",
+        candidate_email: selectedEmployee.data.email || "",
+        candidate_phone: selectedEmployee.data.phone || "",
       });
       setMessage(
         `${selectedEmployee.data.fullName || "Сотрудник"} рассмотрен на вакансию "${selectedJob?.title || "выбранная вакансия"}": ${response.data.final_score.toFixed(1)}`
@@ -173,33 +194,162 @@ const EmployeesPage = () => {
     }
   };
 
-  const hireCandidate = async (candidate) => {
+  const openHireCandidateModal = (candidate) => {
+    setError(null);
+    setMessage(null);
+    setHireCandidateDraft(candidate);
+    setHireForm({
+      fullName: candidate.candidate_name || candidate.resume_filename,
+      email: candidate.candidate_email || "",
+      phone: candidate.candidate_phone || "",
+      salary: "",
+      department_id: "1",
+      status: "active",
+      skills: "",
+      experience: `Converted from approved candidate. AI score: ${candidate.final_score.toFixed(1)} of 10. ${candidate.explanation}`,
+    });
+  };
+
+  const closeHireCandidateModal = () => {
+    setHireCandidateDraft(null);
+    setHireForm({
+      fullName: "",
+      email: "",
+      phone: "",
+      salary: "",
+      department_id: "1",
+      status: "active",
+      skills: "",
+      experience: "",
+    });
+  };
+
+  const updateHireField = (field, value) => {
+    setHireForm((prev) => ({ ...prev, [field]: value }));
+  };
+
+  const submitHireCandidate = async (event) => {
+    event.preventDefault();
+    if (!hireCandidateDraft) {
+      return;
+    }
+
     setError(null);
     setMessage(null);
     setIsSubmitting(true);
     try {
       const encrypted = await encryptEmployee(cryptoKey, {
-        fullName: candidate.candidate_name || candidate.resume_filename,
-        email: candidate.candidate_email || "",
-        phone: candidate.candidate_phone || "",
-        salary: "",
-        skills: "",
-        experience: `Converted from approved candidate. AI score: ${candidate.final_score.toFixed(1)} of 10. ${candidate.explanation}`,
+        fullName: hireForm.fullName.trim(),
+        email: hireForm.email.trim(),
+        phone: hireForm.phone.trim(),
+        salary: hireForm.salary.trim(),
+        skills: hireForm.skills.trim(),
+        experience: hireForm.experience.trim(),
       });
 
       await client.post("/employees", {
-        department_id: 1,
-        status: "active",
+        department_id: Number(hireForm.department_id) || 1,
+        status: hireForm.status,
         encrypted_data: encrypted.encrypted_data,
         iv: encrypted.iv,
-        candidate_id: candidate.id,
+        candidate_id: hireCandidateDraft.id,
       });
 
-      setMessage(`${candidate.candidate_name || candidate.resume_filename} переведен в штат. Вакансия закрыта.`);
+      setMessage(`${hireForm.fullName || hireCandidateDraft.resume_filename} переведен в штат. Вакансия закрыта.`);
+      closeHireCandidateModal();
       await fetchEmployees();
       await fetchApprovedCandidates();
     } catch (err) {
       setError("Не удалось перевести кандидата в штат.");
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
+  const openEditEmployeeModal = (employee) => {
+    setError(null);
+    setMessage(null);
+    setEditEmployee(employee);
+    setEditForm({
+      fullName: employee.data.fullName || "",
+      email: employee.data.email || "",
+      phone: employee.data.phone || "",
+      salary: employee.data.salary || "",
+      departmentId: String(employee.department_id || 1),
+      status: employee.status || "active",
+      skills: employee.data.skills || "",
+      experience: employee.data.experience || "",
+    });
+  };
+
+  const closeEditEmployeeModal = () => {
+    setEditEmployee(null);
+    setEditForm({
+      fullName: "",
+      email: "",
+      phone: "",
+      salary: "",
+      departmentId: "1",
+      status: "active",
+      skills: "",
+      experience: "",
+    });
+  };
+
+  const updateEditField = (field, value) => {
+    setEditForm((prev) => ({ ...prev, [field]: value }));
+  };
+
+  const submitEditEmployee = async (event) => {
+    event.preventDefault();
+    if (!editEmployee) {
+      return;
+    }
+
+    setError(null);
+    setMessage(null);
+    setIsSubmitting(true);
+    try {
+      const encrypted = await encryptEmployee(cryptoKey, {
+        fullName: editForm.fullName.trim(),
+        email: editForm.email.trim(),
+        phone: editForm.phone.trim(),
+        salary: editForm.salary.trim(),
+        skills: editForm.skills.trim(),
+        experience: editForm.experience.trim(),
+      });
+
+      await client.put(`/employees/${editEmployee.id}`, {
+        department_id: Number(editForm.departmentId) || 1,
+        status: editForm.status,
+        encrypted_data: encrypted.encrypted_data,
+        iv: encrypted.iv,
+      });
+
+      setMessage(`${editForm.fullName || "Сотрудник"} обновлен.`);
+      closeEditEmployeeModal();
+      await fetchEmployees();
+    } catch (err) {
+      setError("Не удалось обновить сотрудника.");
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
+  const deleteEmployee = async (employee) => {
+    if (!window.confirm(`Удалить сотрудника ${employee.data?.fullName || employee.id}?`)) {
+      return;
+    }
+
+    setError(null);
+    setMessage(null);
+    setIsSubmitting(true);
+    try {
+      await client.delete(`/employees/${employee.id}`);
+      setMessage(`${employee.data?.fullName || "Сотрудник"} удален.`);
+      await fetchEmployees();
+    } catch (err) {
+      setError("Не удалось удалить сотрудника.");
     } finally {
       setIsSubmitting(false);
     }
@@ -212,10 +362,10 @@ const EmployeesPage = () => {
   return (
     <main className="px-4 py-8 lg:px-10">
       <div className="mx-auto w-full max-w-6xl space-y-8">
-        <section className="relative overflow-hidden rounded-2xl border border-emerald-100 bg-white p-6 shadow-sm">
+        <section className="relative overflow-hidden rounded-2xl border border-emerald-100 bg-white p-6 shadow-sm dark:border-emerald-500/30 dark:bg-slate-900">
           <div className="absolute right-6 top-6 h-20 w-20 rounded-full bg-emerald-100/60 blur-2xl" />
           <div className="relative flex items-start gap-4">
-            <div className="flex h-12 w-12 animate-pulse items-center justify-center rounded-2xl bg-emerald-50 text-emerald-600 ring-1 ring-emerald-100">
+            <div className="flex h-12 w-12 animate-pulse items-center justify-center rounded-2xl bg-emerald-50 text-emerald-600 ring-1 ring-emerald-100 dark:bg-emerald-500/10 dark:text-emerald-300 dark:ring-emerald-500/30">
               <LockIcon />
             </div>
             <div>
@@ -288,13 +438,29 @@ const EmployeesPage = () => {
                         </td>
                       )}
                       <td className="px-6 py-4">
-                        <button
-                          className="rounded-xl border border-slate-200 bg-white px-3 py-2 text-xs font-semibold text-slate-700 transition hover:-translate-y-0.5 hover:border-purple-200 hover:text-purple-600 hover:shadow-sm disabled:cursor-not-allowed disabled:opacity-50"
-                          disabled={!employee.readable}
-                          onClick={() => openScreeningModal(employee)}
-                        >
-                          Рассмотреть на вакансию
-                        </button>
+                        <div className="flex flex-wrap gap-2">
+                          <button
+                            className="rounded-xl border border-slate-200 bg-white px-3 py-2 text-xs font-semibold text-slate-700 transition hover:-translate-y-0.5 hover:border-purple-200 hover:text-purple-600 hover:shadow-sm disabled:cursor-not-allowed disabled:opacity-50"
+                            disabled={!employee.readable}
+                            onClick={() => openScreeningModal(employee)}
+                          >
+                            Рассмотреть
+                          </button>
+                          <button
+                            className="rounded-xl border border-slate-200 bg-white px-3 py-2 text-xs font-semibold text-slate-700 transition hover:-translate-y-0.5 hover:border-indigo-200 hover:text-indigo-600 hover:shadow-sm disabled:cursor-not-allowed disabled:opacity-50"
+                            disabled={!employee.readable || isSubmitting}
+                            onClick={() => openEditEmployeeModal(employee)}
+                          >
+                            Редактировать
+                          </button>
+                          <button
+                            className="rounded-xl bg-rose-600 px-3 py-2 text-xs font-semibold text-white transition hover:-translate-y-0.5 hover:bg-rose-500 disabled:cursor-not-allowed disabled:opacity-50"
+                            disabled={!employee.readable || isSubmitting}
+                            onClick={() => deleteEmployee(employee)}
+                          >
+                            Удалить
+                          </button>
+                        </div>
                       </td>
                     </tr>
                   ))}
@@ -350,7 +516,7 @@ const EmployeesPage = () => {
                       <button
                         className="rounded-xl bg-slate-950 px-3 py-2 text-xs font-semibold text-white transition-all duration-200 hover:-translate-y-0.5 hover:bg-indigo-600 hover:shadow-lg hover:shadow-indigo-600/20 disabled:opacity-50"
                         disabled={isSubmitting}
-                        onClick={() => hireCandidate(candidate)}
+                        onClick={() => openHireCandidateModal(candidate)}
                       >
                         Перевести в штат
                       </button>
@@ -369,6 +535,189 @@ const EmployeesPage = () => {
           </div>
         </section>
       </div>
+
+      {editEmployee && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/40 px-4 backdrop-blur-sm">
+          <form className="max-h-[92vh] w-full max-w-3xl overflow-y-auto rounded-2xl border border-slate-100 bg-white p-6 shadow-2xl dark:border-slate-700 dark:bg-slate-950" onSubmit={submitEditEmployee}>
+            <div className="mb-6 flex items-start justify-between gap-4">
+              <div>
+                <p className="text-sm font-semibold text-emerald-600 dark:text-emerald-300">Zero-Knowledge Update</p>
+                <h2 className="mt-1 text-xl font-semibold tracking-tight text-slate-900">Редактировать сотрудника</h2>
+                <p className="mt-2 text-sm leading-6 text-slate-500">
+                  Изменения шифруются в браузере новым IV. Backend сохранит только обновленный ciphertext и открытые метаданные.
+                </p>
+              </div>
+              <button className="rounded-xl border border-slate-100 px-3 py-2 text-sm text-slate-500 transition hover:bg-slate-50 dark:border-slate-700 dark:hover:bg-slate-900" onClick={closeEditEmployeeModal} type="button">
+                Закрыть
+              </button>
+            </div>
+
+            <div className="grid gap-4 md:grid-cols-2">
+              <label className="block text-sm font-semibold text-slate-700 dark:text-slate-200">
+                ФИО
+                <input className="mt-2 w-full rounded-xl border border-slate-200 bg-white px-4 py-3 text-sm outline-none transition focus:border-indigo-300 focus:ring-4 focus:ring-indigo-50 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-100 dark:focus:ring-indigo-500/20" required value={editForm.fullName} onChange={(event) => updateEditField("fullName", event.target.value)} />
+              </label>
+              <label className="block text-sm font-semibold text-slate-700 dark:text-slate-200">
+                Email
+                <input className="mt-2 w-full rounded-xl border border-slate-200 bg-white px-4 py-3 text-sm outline-none transition focus:border-indigo-300 focus:ring-4 focus:ring-indigo-50 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-100 dark:focus:ring-indigo-500/20" type="email" value={editForm.email} onChange={(event) => updateEditField("email", event.target.value)} />
+              </label>
+              <label className="block text-sm font-semibold text-slate-700 dark:text-slate-200">
+                Телефон
+                <input className="mt-2 w-full rounded-xl border border-slate-200 bg-white px-4 py-3 text-sm outline-none transition focus:border-indigo-300 focus:ring-4 focus:ring-indigo-50 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-100 dark:focus:ring-indigo-500/20" value={editForm.phone} onChange={(event) => updateEditField("phone", event.target.value)} />
+              </label>
+              <label className="block text-sm font-semibold text-slate-700 dark:text-slate-200">
+                Базовый оклад
+                <input className="mt-2 w-full rounded-xl border border-slate-200 bg-white px-4 py-3 text-sm outline-none transition focus:border-indigo-300 focus:ring-4 focus:ring-indigo-50 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-100 dark:focus:ring-indigo-500/20" value={editForm.salary} onChange={(event) => updateEditField("salary", event.target.value)} />
+              </label>
+              <label className="block text-sm font-semibold text-slate-700 dark:text-slate-200">
+                Department ID
+                <input className="mt-2 w-full rounded-xl border border-slate-200 bg-white px-4 py-3 text-sm outline-none transition focus:border-indigo-300 focus:ring-4 focus:ring-indigo-50 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-100 dark:focus:ring-indigo-500/20" min="1" type="number" value={editForm.departmentId} onChange={(event) => updateEditField("departmentId", event.target.value)} />
+              </label>
+              <label className="block text-sm font-semibold text-slate-700 dark:text-slate-200">
+                Статус
+                <select className="mt-2 w-full rounded-xl border border-slate-200 bg-white px-4 py-3 text-sm outline-none transition focus:border-indigo-300 focus:ring-4 focus:ring-indigo-50 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-100 dark:focus:ring-indigo-500/20" value={editForm.status} onChange={(event) => updateEditField("status", event.target.value)}>
+                  <option value="active">active</option>
+                  <option value="inactive">inactive</option>
+                  <option value="probation">probation</option>
+                  <option value="onboarding">onboarding</option>
+                </select>
+              </label>
+            </div>
+
+            <label className="mt-4 block text-sm font-semibold text-slate-700 dark:text-slate-200">
+              Навыки
+              <input className="mt-2 w-full rounded-xl border border-slate-200 bg-white px-4 py-3 text-sm outline-none transition focus:border-indigo-300 focus:ring-4 focus:ring-indigo-50 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-100 dark:focus:ring-indigo-500/20" value={editForm.skills} onChange={(event) => updateEditField("skills", event.target.value)} />
+            </label>
+
+            <label className="mt-4 block text-sm font-semibold text-slate-700 dark:text-slate-200">
+              Опыт работы
+              <textarea className="mt-2 min-h-36 w-full rounded-xl border border-slate-200 bg-white px-4 py-3 text-sm outline-none transition focus:border-indigo-300 focus:ring-4 focus:ring-indigo-50 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-100 dark:focus:ring-indigo-500/20" value={editForm.experience} onChange={(event) => updateEditField("experience", event.target.value)} />
+            </label>
+
+            <div className="mt-6 flex justify-end gap-3">
+              <button type="button" className="rounded-xl border border-slate-200 px-4 py-2 text-sm font-semibold text-slate-600 transition hover:bg-slate-50 dark:border-slate-700 dark:text-slate-200 dark:hover:bg-slate-900" onClick={closeEditEmployeeModal}>
+                Отмена
+              </button>
+              <button className="rounded-xl bg-indigo-600 px-4 py-2 text-sm font-semibold text-white shadow-lg shadow-indigo-600/20 transition hover:-translate-y-0.5 hover:bg-indigo-500 disabled:cursor-not-allowed disabled:opacity-50" disabled={isSubmitting}>
+                {isSubmitting ? "Шифрование..." : "Сохранить изменения"}
+              </button>
+            </div>
+          </form>
+        </div>
+      )}
+
+      {hireCandidateDraft && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/40 px-4 backdrop-blur-sm">
+          <form className="max-h-[92vh] w-full max-w-3xl overflow-y-auto rounded-2xl border border-slate-100 bg-white p-6 shadow-2xl dark:border-slate-700 dark:bg-slate-950" onSubmit={submitHireCandidate}>
+            <div className="mb-6 flex items-start justify-between gap-4">
+              <div>
+                <p className="text-sm font-semibold text-indigo-600 dark:text-indigo-300">Hiring Conversion</p>
+                <h2 className="mt-1 text-xl font-semibold tracking-tight text-slate-900">Редактировать карточку перед переводом в штат</h2>
+                <p className="mt-2 text-sm leading-6 text-slate-500">
+                  HR проверяет данные кандидата, дополняет зарплату, навыки и опыт. После подтверждения карточка шифруется в браузере и сохраняется как сотрудник.
+                </p>
+              </div>
+              <button className="rounded-xl border border-slate-100 px-3 py-2 text-sm text-slate-500 transition hover:bg-slate-50 dark:border-slate-700 dark:hover:bg-slate-900" onClick={closeHireCandidateModal} type="button">
+                Закрыть
+              </button>
+            </div>
+
+            <div className="grid gap-4 md:grid-cols-2">
+              <label className="block text-sm font-semibold text-slate-700 dark:text-slate-200">
+                ФИО
+                <input
+                  className="mt-2 w-full rounded-xl border border-slate-200 bg-white px-4 py-3 text-sm outline-none transition focus:border-indigo-300 focus:ring-4 focus:ring-indigo-50 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-100 dark:focus:ring-indigo-500/20"
+                  required
+                  value={hireForm.fullName}
+                  onChange={(event) => updateHireField("fullName", event.target.value)}
+                />
+              </label>
+              <label className="block text-sm font-semibold text-slate-700 dark:text-slate-200">
+                Email
+                <input
+                  className="mt-2 w-full rounded-xl border border-slate-200 bg-white px-4 py-3 text-sm outline-none transition focus:border-indigo-300 focus:ring-4 focus:ring-indigo-50 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-100 dark:focus:ring-indigo-500/20"
+                  type="email"
+                  value={hireForm.email}
+                  onChange={(event) => updateHireField("email", event.target.value)}
+                />
+              </label>
+              <label className="block text-sm font-semibold text-slate-700 dark:text-slate-200">
+                Телефон
+                <input
+                  className="mt-2 w-full rounded-xl border border-slate-200 bg-white px-4 py-3 text-sm outline-none transition focus:border-indigo-300 focus:ring-4 focus:ring-indigo-50 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-100 dark:focus:ring-indigo-500/20"
+                  value={hireForm.phone}
+                  onChange={(event) => updateHireField("phone", event.target.value)}
+                />
+              </label>
+              <label className="block text-sm font-semibold text-slate-700 dark:text-slate-200">
+                Базовый оклад
+                <input
+                  className="mt-2 w-full rounded-xl border border-slate-200 bg-white px-4 py-3 text-sm outline-none transition focus:border-indigo-300 focus:ring-4 focus:ring-indigo-50 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-100 dark:focus:ring-indigo-500/20"
+                  value={hireForm.salary}
+                  onChange={(event) => updateHireField("salary", event.target.value)}
+                />
+              </label>
+              <label className="block text-sm font-semibold text-slate-700 dark:text-slate-200">
+                Department ID
+                <input
+                  className="mt-2 w-full rounded-xl border border-slate-200 bg-white px-4 py-3 text-sm outline-none transition focus:border-indigo-300 focus:ring-4 focus:ring-indigo-50 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-100 dark:focus:ring-indigo-500/20"
+                  min="1"
+                  type="number"
+                  value={hireForm.department_id}
+                  onChange={(event) => updateHireField("department_id", event.target.value)}
+                />
+              </label>
+              <label className="block text-sm font-semibold text-slate-700 dark:text-slate-200">
+                Статус
+                <select
+                  className="mt-2 w-full rounded-xl border border-slate-200 bg-white px-4 py-3 text-sm outline-none transition focus:border-indigo-300 focus:ring-4 focus:ring-indigo-50 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-100 dark:focus:ring-indigo-500/20"
+                  value={hireForm.status}
+                  onChange={(event) => updateHireField("status", event.target.value)}
+                >
+                  <option value="active">active</option>
+                  <option value="probation">probation</option>
+                  <option value="onboarding">onboarding</option>
+                </select>
+              </label>
+            </div>
+
+            <label className="mt-4 block text-sm font-semibold text-slate-700 dark:text-slate-200">
+              Навыки
+              <input
+                className="mt-2 w-full rounded-xl border border-slate-200 bg-white px-4 py-3 text-sm outline-none transition focus:border-indigo-300 focus:ring-4 focus:ring-indigo-50 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-100 dark:focus:ring-indigo-500/20"
+                placeholder="Python, FastAPI, PostgreSQL"
+                value={hireForm.skills}
+                onChange={(event) => updateHireField("skills", event.target.value)}
+              />
+            </label>
+
+            <label className="mt-4 block text-sm font-semibold text-slate-700 dark:text-slate-200">
+              Опыт и заметки HR
+              <textarea
+                className="mt-2 min-h-36 w-full rounded-xl border border-slate-200 bg-white px-4 py-3 text-sm outline-none transition focus:border-indigo-300 focus:ring-4 focus:ring-indigo-50 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-100 dark:focus:ring-indigo-500/20"
+                value={hireForm.experience}
+                onChange={(event) => updateHireField("experience", event.target.value)}
+              />
+            </label>
+
+            <div className="mt-6 rounded-2xl border border-emerald-100 bg-emerald-50 p-4 text-sm leading-6 text-emerald-800 dark:border-emerald-500/30 dark:bg-emerald-500/10 dark:text-emerald-200">
+              В базу сотрудников уйдут только encrypted_data и IV. Открытые данные из формы используются локально в браузере для шифрования.
+            </div>
+
+            <div className="mt-6 flex justify-end gap-3">
+              <button type="button" className="rounded-xl border border-slate-200 px-4 py-2 text-sm font-semibold text-slate-600 transition hover:bg-slate-50 dark:border-slate-700 dark:text-slate-200 dark:hover:bg-slate-900" onClick={closeHireCandidateModal}>
+                Отмена
+              </button>
+              <button
+                className="rounded-xl bg-indigo-600 px-4 py-2 text-sm font-semibold text-white shadow-lg shadow-indigo-600/20 transition hover:-translate-y-0.5 hover:bg-indigo-500 disabled:cursor-not-allowed disabled:opacity-50"
+                disabled={isSubmitting}
+              >
+                {isSubmitting ? "Шифрование..." : "Зашифровать и перевести в штат"}
+              </button>
+            </div>
+          </form>
+        </div>
+      )}
 
       {isModalOpen && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/35 px-4 backdrop-blur-sm">

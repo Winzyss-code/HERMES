@@ -81,7 +81,36 @@ def apply_mvp_schema_updates():
             text(
                 """
                 ALTER TABLE users
-                ADD COLUMN IF NOT EXISTS organization_id UUID NULL
+                ADD COLUMN IF NOT EXISTS organization_id UUID NULL,
+                ADD COLUMN IF NOT EXISTS email VARCHAR NULL,
+                ADD COLUMN IF NOT EXISTS is_email_verified BOOLEAN NOT NULL DEFAULT TRUE,
+                ADD COLUMN IF NOT EXISTS email_verification_token TEXT NULL,
+                ADD COLUMN IF NOT EXISTS email_verification_expires_at TIMESTAMP WITHOUT TIME ZONE NULL
+                """
+            )
+        )
+        connection.execute(
+            text(
+                """
+                UPDATE users
+                SET email = username || '@local.hermes'
+                WHERE email IS NULL
+                """
+            )
+        )
+        connection.execute(
+            text(
+                """
+                DO $$
+                BEGIN
+                    IF NOT EXISTS (
+                        SELECT 1
+                        FROM pg_indexes
+                        WHERE indexname = 'ix_users_email'
+                    ) THEN
+                        CREATE UNIQUE INDEX ix_users_email ON users (email);
+                    END IF;
+                END $$;
                 """
             )
         )

@@ -57,7 +57,7 @@ const NewEmployeePage = () => {
   return (
     <main className="flex min-h-[calc(100vh-96px)] items-start justify-center px-4 py-8 lg:px-10">
       <div className="w-full max-w-4xl">
-        <div className="mb-6 rounded-2xl border border-emerald-100 bg-emerald-50/70 p-5">
+        <div className="mb-6 rounded-2xl border border-emerald-100 bg-emerald-50/70 p-5 dark:border-emerald-500/30 dark:bg-emerald-500/10">
           <p className="text-sm font-semibold text-emerald-700">AES-GCM Encryption</p>
           <h1 className="mt-1 text-2xl font-semibold tracking-tight text-slate-900">Новый сотрудник</h1>
           <p className="mt-2 text-sm text-slate-600">Все поля ниже будут собраны в JSON и зашифрованы в браузере перед отправкой.</p>

@@ -9,11 +9,12 @@ import RegisterPage from "./pages/RegisterPage.jsx";
 import ScreeningPage from "./pages/ScreeningPage.jsx";
 import UsersPage from "./pages/UsersPage.jsx";
 import OrganizationsPage from "./pages/OrganizationsPage.jsx";
+import VerifyEmailPage from "./pages/VerifyEmailPage.jsx";
 
 
 const App = () => {
   const location = useLocation();
-  const isAuthPage = location.pathname === "/login" || location.pathname === "/register";
+  const isAuthPage = location.pathname === "/login" || location.pathname === "/register" || location.pathname === "/verify-email";
 
   return (
     <div className="min-h-screen bg-slate-50 text-slate-950">
@@ -21,6 +22,7 @@ const App = () => {
         <Routes>
           <Route path="/login" element={<LoginPage />} />
           <Route path="/register" element={<RegisterPage />} />
+          <Route path="/verify-email" element={<VerifyEmailPage />} />
           <Route path="*" element={<Navigate to="/login" replace />} />
         </Routes>
       ) : (

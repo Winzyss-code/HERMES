@@ -1,7 +1,25 @@
 import { useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 
+import ThemeToggle from "../components/ThemeToggle.jsx";
 import { useAuth } from "../context/AuthContext.jsx";
+
+
+const ShieldLogo = () => (
+  <svg className="h-7 w-7" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+    <path
+      d="M12 3.25 19 6v5.2c0 4.45-2.83 8.4-7 9.83-4.17-1.43-7-5.38-7-9.83V6l7-2.75Z"
+      className="fill-white"
+    />
+    <path
+      d="m9.35 12.1 1.78 1.78 3.72-4.08"
+      stroke="#4f46e5"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      strokeWidth="1.8"
+    />
+  </svg>
+);
 
 
 const LoginPage = () => {
@@ -29,16 +47,18 @@ const LoginPage = () => {
       else if (role === "org_admin") navigate("/users");
       else navigate("/organizations");
     } catch (err) {
-      setError("Не удалось войти. Проверьте логин и пароль.");
+      const detail = err.response?.data?.detail;
+      setError(detail === "Email is not verified" ? "Email не подтвержден. Проверьте письмо со ссылкой подтверждения." : "Не удалось войти. Проверьте логин и пароль.");
     }
   };
 
   return (
     <main className="grid min-h-screen place-items-center bg-slate-50 px-4">
+      <ThemeToggle className="fixed right-5 top-5 z-50" />
       <div className="w-full max-w-md">
         <div className="mb-6 text-center">
           <div className="mx-auto mb-4 flex h-14 w-14 items-center justify-center rounded-2xl bg-indigo-600 text-xl font-bold text-white shadow-lg shadow-indigo-600/25">
-            H
+            <ShieldLogo />
           </div>
           <p className="text-sm font-semibold text-indigo-600">Secure Hiring OS</p>
           <h1 className="mt-2 text-3xl font-semibold tracking-tight text-slate-900">Вход в HERMES</h1>

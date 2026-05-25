@@ -47,32 +47,14 @@ export const AuthProvider = ({ children }) => {
     return nextRole;
   };
 
-  const registerOrganization = async (organizationNameValue, usernameValue, password, masterSecret) => {
+  const registerOrganization = async (organizationNameValue, usernameValue, email, password) => {
     const response = await client.post("/auth/register-organization", {
       organization_name: organizationNameValue,
       username: usernameValue,
+      email,
       password,
     });
-    const nextToken = response.data.access_token;
-    const nextRole = response.data.role;
-    const nextOrganizationId = response.data.organization_id || "";
-    const nextOrganizationName = response.data.organization_name || "";
-    const secret = masterSecret || DEFAULT_MASTER_SECRET;
-
-    localStorage.setItem("hermes_token", nextToken);
-    localStorage.setItem("hermes_role", nextRole);
-    localStorage.setItem("hermes_username", usernameValue);
-    localStorage.setItem("hermes_organization_id", nextOrganizationId);
-    localStorage.setItem("hermes_organization_name", nextOrganizationName);
-    sessionStorage.setItem("hermes_master_secret", secret);
-
-    setToken(nextToken);
-    setRole(nextRole);
-    setUsername(usernameValue);
-    setOrganizationId(nextOrganizationId);
-    setOrganizationName(nextOrganizationName);
-    setCryptoKey(await deriveKey(secret));
-    return nextRole;
+    return response.data;
   };
 
   const logout = () => {

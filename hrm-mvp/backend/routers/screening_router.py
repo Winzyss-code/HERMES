@@ -2,6 +2,7 @@ import os
 import uuid
 
 from fastapi import APIRouter, Depends, File, HTTPException, UploadFile, status
+from sqlalchemy import func
 from sqlalchemy.orm import Session
 from uuid import UUID
 
@@ -41,12 +42,27 @@ def list_jobs(
     user=Depends(require_role(["hr_admin", "recruiter"])),
 ):
     require_organization_user(user)
-    return (
-        db.query(Job)
+    rows = (
+        db.query(Job, func.count(Candidate.id).label("candidates_count"))
+        .outerjoin(Candidate, Candidate.job_id == Job.id)
         .filter(Job.organization_id == user.organization_id)
+        .group_by(Job.id)
         .order_by(Job.created_at.desc())
         .all()
     )
+    return [
+        JobOut(
+            id=job.id,
+            organization_id=job.organization_id,
+            title=job.title,
+            description=job.description,
+            required_skills=job.required_skills,
+            status=job.status,
+            created_at=job.created_at,
+            candidates_count=count,
+        )
+        for job, count in rows
+    ]
 
 
 @router.post("/jobs/{job_id}/screen", response_model=CandidateOut)
@@ -151,10 +167,12 @@ def screen_employee(
         employee_id=employee.id,
         status="screening",
         resume_filename=f"internal-employee-{employee.id}",
-        candidate_name=f"Internal employee {employee.id}",
+        candidate_name=(payload.candidate_name or f"Internal employee {employee.id}").strip(),
+        candidate_email=payload.candidate_email,
+        candidate_phone=payload.candidate_phone,
         final_score=score.final_score,
         cosine_sim=score.cosine_sim,
-        explanation=f"Internal employee screening. {score.explanation}",
+        explanation=f"Internal employee screening for {payload.candidate_name or employee.id}. {score.explanation}",
     )
     db.add(candidate)
     db.commit()
